@@ -1,0 +1,2 @@
+model,dataset,split,threshold,precision,recall,f1,roc_auc,pr_auc,tn,fp,fn,tp,fp_cost,fn_cost,expected_cost
+XGBoost,ULB Credit Card Fraud Detection,test,0.5,0.8125,0.75,0.78,0.9782647102832718,0.7689240183986886,42660,9,13,39,5,100,1345

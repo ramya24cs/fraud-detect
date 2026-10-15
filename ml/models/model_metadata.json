@@ -1,0 +1,64 @@
+{
+    "model_version": "xgb-cost-v1",
+    "model_type": "XGBoost",
+    "dataset": "ULB Credit Card Fraud Detection",
+    "dataset_file": "creditcard.csv",
+    "target": "Class",
+    "features": [
+        "Time",
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5",
+        "V6",
+        "V7",
+        "V8",
+        "V9",
+        "V10",
+        "V11",
+        "V12",
+        "V13",
+        "V14",
+        "V15",
+        "V16",
+        "V17",
+        "V18",
+        "V19",
+        "V20",
+        "V21",
+        "V22",
+        "V23",
+        "V24",
+        "V25",
+        "V26",
+        "V27",
+        "V28",
+        "Amount"
+    ],
+    "preprocessing": {
+        "scaler": "StandardScaler",
+        "fit_on": "training_data_only"
+    },
+    "split": {
+        "method": "chronological",
+        "train": 0.70,
+        "validation": 0.15,
+        "test": 0.15
+    },
+    "imbalance_handling": {
+        "method": "scale_pos_weight",
+        "value": 518.1875
+    },
+    "xgboost_parameters": {
+        "n_estimators": 300,
+        "max_depth": 6,
+        "learning_rate": 0.05,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "objective": "binary:logistic",
+        "eval_metric": "logloss",
+        "random_state": 42
+    },
+    "inference_output": "fraud_probability"
+}

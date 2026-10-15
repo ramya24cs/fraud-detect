@@ -1,0 +1,8 @@
+from enum import Enum
+
+
+class FeedbackLabel(str, Enum):
+    CONFIRMED_FRAUD = "CONFIRMED_FRAUD"
+    CONFIRMED_GENUINE = "CONFIRMED_GENUINE"
+    DISPUTED = "DISPUTED"
+    INCONCLUSIVE = "INCONCLUSIVE"

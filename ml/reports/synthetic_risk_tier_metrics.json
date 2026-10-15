@@ -1,0 +1,115 @@
+{
+  "model_version": "synthetic-risk-tier-v1",
+  "model_type": "ExtraTreesClassifier",
+  "dataset": "fraud_transactions_synthetic.csv",
+  "dataset_is_synthetic": true,
+  "target": "risk_label",
+  "excluded_columns": [
+    "risk_score",
+    "is_fraud",
+    "transaction_id",
+    "reference_id"
+  ],
+  "features": [
+    "currency",
+    "transaction_type",
+    "merchant_or_recipient",
+    "payment_channel",
+    "location",
+    "amount",
+    "account_age_days",
+    "transactions_last_1h",
+    "avg_amount_30d",
+    "new_recipient",
+    "distance_from_usual_km",
+    "failed_attempts_24h",
+    "hour_of_day",
+    "is_weekend"
+  ],
+  "feature_availability_note": "The model needs all listed transaction and account-context features. The current transaction form/API does not collect all of them, so this artifact is not wired into live predictions.",
+  "rows": 12000,
+  "class_counts": {
+    "LOW": 9139,
+    "MEDIUM": 2680,
+    "HIGH": 181
+  },
+  "risk_score_label_mismatches": 0,
+  "observed_label_rule": {
+    "LOW": "risk_score < 35",
+    "MEDIUM": "35 <= risk_score < 55",
+    "HIGH": "risk_score >= 55"
+  },
+  "evaluation": {
+    "method": "chronological 80/20 holdout",
+    "cutoff_utc": "2026-08-11T14:56:00+00:00",
+    "train_rows": 9600,
+    "test_rows": 2400,
+    "test_class_counts": {
+      "LOW": 1846,
+      "MEDIUM": 512,
+      "HIGH": 42
+    },
+    "metrics": {
+      "accuracy": 0.8279166666666666,
+      "balanced_accuracy": 0.6238017044575143,
+      "macro_f1": 0.6524901382765134,
+      "class_report": {
+        "LOW": {
+          "precision": 0.8980477223427332,
+          "recall": 0.8970747562296858,
+          "f1-score": 0.8975609756097561,
+          "support": 1846.0
+        },
+        "MEDIUM": {
+          "precision": 0.5939849624060151,
+          "recall": 0.6171875,
+          "f1-score": 0.6053639846743295,
+          "support": 512.0
+        },
+        "HIGH": {
+          "precision": 0.625,
+          "recall": 0.35714285714285715,
+          "f1-score": 0.45454545454545453,
+          "support": 42.0
+        },
+        "accuracy": 0.8279166666666666,
+        "macro avg": {
+          "precision": 0.7056775615829162,
+          "recall": 0.6238017044575144,
+          "f1-score": 0.6524901382765135,
+          "support": 2400.0
+        },
+        "weighted avg": {
+          "precision": 0.8284026650819022,
+          "recall": 0.8279166666666666,
+          "f1-score": 0.8274728459249064,
+          "support": 2400.0
+        }
+      },
+      "confusion_matrix_labels": [
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ],
+      "confusion_matrix": [
+        [
+          1656,
+          190,
+          0
+        ],
+        [
+          187,
+          316,
+          9
+        ],
+        [
+          1,
+          26,
+          15
+        ]
+      ]
+    },
+    "caveat": "Synthetic-data development estimate, not real-world validation. This chronological window was consulted during development experiments, so it is not a pristine final holdout. The HIGH class is sparse; inspect per-class recall before any deployment."
+  },
+  "artifact_path": "ml\\models\\risk_tier_synthetic.joblib"
+}

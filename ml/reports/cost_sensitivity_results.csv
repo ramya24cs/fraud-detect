@@ -1,0 +1,4 @@
+scenario,review_cost,block_friction_cost,missed_fraud_cost,residual_risk_cost,block_cost,approve_threshold,block_threshold,expected_cost,approve_count,review_count,block_count,review_rate
+baseline_reference,2.0,5.0,100.0,10.0,20.0,0.02,0.98,1728.0,42601,79,38,0.0018493375158013016
+higher_fraud_loss,2.0,5.0,200.0,10.0,20.0,0.02,0.98,2428.0,42601,79,38,0.0018493375158013016
+high_review_cost,10.0,5.0,100.0,10.0,20.0,0.07,0.08,1960.0,42651,5,62,0.00011704667821527225
