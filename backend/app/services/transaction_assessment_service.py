@@ -22,9 +22,11 @@ from backend.app.schemas.transaction_assessment import (
     ReviewDecisionResponse,
     RiskAlertItem,
     RiskAlertList,
+    TransactionAssessmentBatchRequest,
     TransactionAssessmentRequest,
 )
 from backend.app.services.review_notification_service import (
+    send_batch_review_notification,
     send_review_notification,
 )
 
@@ -33,6 +35,7 @@ logger = logging.getLogger(__name__)
 POLICY_VERSION = "transaction-review-v1"
 LOW_AMOUNT_MAX = 2_000.0
 HIGH_AMOUNT_MIN = 99_999.0
+BATCH_EMAIL_AMOUNT_THRESHOLD = 50_000.0
 
 
 def assess_transaction_amount(current: dict[str, Any]) -> dict[str, Any]:
@@ -167,6 +170,162 @@ def analyze_and_persist(
         raise
 
 
+def analyze_batch_and_persist(
+    db: Session,
+    request: TransactionAssessmentBatchRequest,
+    current_user: User,
+) -> dict[str, Any]:
+    """Assess a file batch and email once if any amount exceeds the threshold."""
+    pending_results: list[dict[str, Any]] = []
+    batch_assessments: list[dict[str, Any]] = []
+
+    try:
+        for item in request.transactions:
+            payload = {
+                "amount": item.amount,
+                "currency": item.currency,
+                "occurred_at": item.occurred_at.isoformat(),
+                "transaction_type": item.transaction_type,
+                "merchant": item.merchant,
+                "channel": item.channel,
+                "reference": item.reference,
+                "location": item.location,
+                "remarks": item.remarks,
+                "assessment_type": "fixed-amount-thresholds",
+            }
+            outcome = assess_transaction_amount(payload)
+            transaction = Transaction(
+                user_id=current_user.id,
+                external_id=f"assessment-{uuid4()}",
+                payload_json=payload,
+                amount=item.amount,
+            )
+            db.add(transaction)
+            db.flush()
+
+            assessment = TransactionAssessment(
+                transaction_id=transaction.id,
+                anomaly_score=outcome["anomaly_score"],
+                risk_level=outcome["risk_level"],
+                reasons=outcome["reasons"],
+                history_count=outcome["history_count"],
+                review_required=outcome["review_required"],
+                alert_created=outcome["alert_created"],
+                policy_version=POLICY_VERSION,
+            )
+            db.add(assessment)
+            db.flush()
+            db.add(
+                AuditLog(
+                    user_id=current_user.id,
+                    action="TRANSACTION_ASSESSED",
+                    entity_type="transaction_assessment",
+                    entity_id=str(assessment.id),
+                    metadata_json={
+                        "transaction_id": str(transaction.id),
+                        "risk_level": assessment.risk_level,
+                        "anomaly_score": assessment.anomaly_score,
+                        "policy_version": POLICY_VERSION,
+                        "assessment_source": "file_batch",
+                    },
+                )
+            )
+            pending_results.append(
+                {
+                    "request": item,
+                    "payload": payload,
+                    "transaction": transaction,
+                    "assessment": assessment,
+                }
+            )
+
+        db.commit()
+        for result in pending_results:
+            db.refresh(result["assessment"])
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to assess and persist transaction batch")
+        raise
+
+    risk_rank = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
+    overall_risk_level = max(
+        (
+            result["assessment"].risk_level
+            for result in pending_results
+        ),
+        key=risk_rank.__getitem__,
+    )
+    threshold_items = [
+        {
+            "assessment_id": result["assessment"].id,
+            "risk_level": result["assessment"].risk_level,
+            "amount": result["request"].amount,
+            "currency": result["request"].currency,
+            "occurred_at": result["request"].occurred_at.isoformat(),
+            "reference": result["request"].reference,
+            "merchant": result["request"].merchant,
+        }
+        for result in pending_results
+        if result["request"].amount > BATCH_EMAIL_AMOUNT_THRESHOLD
+    ]
+
+    if threshold_items:
+        notification = send_batch_review_notification(
+            recipient_email=current_user.email,
+            assessments=threshold_items,
+            total_transactions=len(pending_results),
+            threshold_amount=BATCH_EMAIL_AMOUNT_THRESHOLD,
+        )
+    else:
+        notification = {
+            "status": "NOT_REQUIRED",
+            "message": (
+                "No transaction amount exceeded 50,000; no email was sent."
+            ),
+            "recipient": None,
+            "subject": None,
+            "content": None,
+        }
+
+    assessments = []
+    for result in pending_results:
+        request_item = result["request"]
+        transaction = result["transaction"]
+        assessment = result["assessment"]
+        assessments.append(
+            {
+                "assessment_id": assessment.id,
+                "transaction_id": transaction.id,
+                "amount": request_item.amount,
+                "currency": request_item.currency,
+                "occurred_at": request_item.occurred_at,
+                "anomaly_score": assessment.anomaly_score,
+                "risk_level": assessment.risk_level,
+                "reasons": assessment.reasons,
+                "history_count": assessment.history_count,
+                "review_required": assessment.review_required,
+                "alert_created": assessment.alert_created,
+                "policy_version": assessment.policy_version,
+                "review_notification_status": "NOT_REQUIRED",
+                "review_notification_message": None,
+                "review_notification_recipient": None,
+                "review_notification_subject": None,
+                "review_notification_content": None,
+                "created_at": assessment.created_at,
+            }
+        )
+
+    return {
+        "assessments": assessments,
+        "overall_risk_level": overall_risk_level,
+        "review_notification_status": notification["status"],
+        "review_notification_message": notification["message"],
+        "review_notification_recipient": notification["recipient"],
+        "review_notification_subject": notification["subject"],
+        "review_notification_content": notification["content"],
+    }
+
+
 def list_risk_alerts(
     db: Session,
     current_user: User,
@@ -219,10 +378,9 @@ def list_pending_reviews(
         .where(
             TransactionAssessment.review_required.is_(True),
             TransactionAssessment.reviewed_at.is_(None),
+            Transaction.user_id == current_user.id,
         )
     )
-    if current_user.role != "ADMIN":
-        query = query.where(Transaction.user_id == current_user.id)
     total = int(
         db.scalar(select(func.count()).select_from(query.subquery())) or 0
     )
@@ -271,11 +429,10 @@ def list_assessment_history(
         .where(
             Transaction.payload_json["assessment_type"]
             .as_string()
-            .in_(("account-history-anomaly", "fixed-amount-thresholds"))
+            .in_(("account-history-anomaly", "fixed-amount-thresholds")),
+            Transaction.user_id == current_user.id,
         )
     )
-    if current_user.role != "ADMIN":
-        query = query.where(Transaction.user_id == current_user.id)
 
     total = int(
         db.scalar(select(func.count()).select_from(query.subquery())) or 0

@@ -125,6 +125,60 @@ def test_review_notification_sends_review_link(monkeypatch):
         assert detail in content
 
 
+def test_batch_review_notification_summarizes_threshold_rows(monkeypatch):
+    _configure_email(monkeypatch)
+    sent_messages = []
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def starttls(self, context):
+            pass
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            sent_messages.append(message)
+            return {}
+
+    monkeypatch.setattr(review_notification_service.smtplib, "SMTP", FakeSMTP)
+    high_id = uuid4()
+    result = review_notification_service.send_batch_review_notification(
+        recipient_email="signed-in@example.test",
+        assessments=[
+            {
+                "assessment_id": high_id,
+                "risk_level": "MEDIUM",
+                "amount": 50_000.01,
+                "currency": "INR",
+                "occurred_at": "2026-10-15T11:45:00",
+                "reference": "TX-THRESHOLD",
+                "merchant": "Transfer",
+            }
+        ],
+        total_transactions=3,
+        threshold_amount=50_000,
+    )
+
+    assert result["status"] == "SENT"
+    assert len(sent_messages) == 1
+    assert sent_messages[0]["To"] == "signed-in@example.test"
+    content = sent_messages[0].get_content()
+    assert "contains 3 transactions" in content
+    assert "1 transaction(s) exceeded the amount threshold of 50,000.00" in content
+    assert "INR 50000.01" in content
+    assert "risk: MEDIUM" in content
+    assert f"assessment ID: {high_id}" in content
+
+
 def test_gmail_app_password_whitespace_is_removed_before_login(monkeypatch):
     monkeypatch.setattr(settings, "SMTP_HOST", "smtp.gmail.com")
     monkeypatch.setattr(settings, "SMTP_PASSWORD", "abcd efgh ijkl mnop")

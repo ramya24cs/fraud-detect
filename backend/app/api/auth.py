@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from backend.app.api.deps import get_current_user
 from backend.app.core.config import settings
 from backend.app.db.session import get_db
+from backend.app.models.user import User
 from backend.app.schemas.auth import (
     TokenResponse,
     UserLogin,
@@ -16,6 +18,14 @@ from backend.app.services.auth_service import (
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.get("/me", response_model=UserResponse)
+def current_account(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """Return the identity associated with the supplied access token."""
+    return current_user
 
 
 @router.post(

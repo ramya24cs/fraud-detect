@@ -1,9 +1,28 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { getCurrentAccount } from "../services/authService";
 
 function Navbar() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const [accountEmail, setAccountEmail] = useState("Loading account...");
+
+  useEffect(() => {
+    let active = true;
+
+    getCurrentAccount()
+      .then((account) => {
+        if (active) setAccountEmail(account.email);
+      })
+      .catch(() => {
+        if (active) setAccountEmail("Account unavailable");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -18,7 +37,7 @@ function Navbar() {
 
       <div className="navbar-actions">
         <span className="operator-label">
-          Operator
+          {accountEmail}
         </span>
 
         <button

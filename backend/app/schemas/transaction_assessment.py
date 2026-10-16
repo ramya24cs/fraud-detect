@@ -72,6 +72,28 @@ class TransactionAssessmentResponse(BaseModel):
     created_at: datetime
 
 
+class TransactionAssessmentBatchRequest(BaseModel):
+    transactions: list[TransactionAssessmentRequest] = Field(
+        min_length=1,
+        max_length=100,
+    )
+
+
+class TransactionAssessmentBatchResponse(BaseModel):
+    assessments: list[TransactionAssessmentResponse]
+    overall_risk_level: Literal["LOW", "MEDIUM", "HIGH"]
+    review_notification_status: Literal[
+        "NOT_REQUIRED",
+        "SENT",
+        "NOT_CONFIGURED",
+        "FAILED",
+    ]
+    review_notification_message: str | None
+    review_notification_recipient: str | None = None
+    review_notification_subject: str | None = None
+    review_notification_content: str | None = None
+
+
 class PendingReviewItem(BaseModel):
     assessment_id: UUID
     transaction_id: UUID

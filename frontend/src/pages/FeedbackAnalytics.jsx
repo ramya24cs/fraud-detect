@@ -77,11 +77,20 @@ function FeedbackAnalytics() {
       <Sidebar />
       <div className="main-area">
         <Navbar />
-        <main className="page-content">
-          <div className="page-header">
-            <div>
-              <h1>Feedback Analysis</h1>
+        <main className="page-content feedback-page">
+          <div className="dashboard-hero analytics-hero">
+            <div className="dashboard-hero-copy">
+              <span className="dashboard-eyebrow">
+                <span className="dashboard-eyebrow-dot" />
+                HUMAN-IN-THE-LOOP SIGNALS
+              </span>
+              <h1>Feedback analysis</h1>
+              <p>
+                See how human decisions add context to risk assessments and
+                shape review quality.
+              </p>
             </div>
+            <span className="analytics-hero-badge">DECISION INSIGHTS</span>
           </div>
 
           {error && (
@@ -90,7 +99,7 @@ function FeedbackAnalytics() {
             </div>
           )}
 
-          <section className="stats-grid">
+          <section className="stats-grid insight-stat-grid feedback-stat-grid">
             {[
               ["Assessments reviewed", reviewed.length],
               ["Agreed with risk", decisionData[0].count],
@@ -99,7 +108,7 @@ function FeedbackAnalytics() {
               ["Disagreement rate", `${disagreementRate}%`],
               ["Legacy ML feedback", legacyFeedback.length],
             ].map(([title, value]) => (
-              <div className="stat-card" key={title}>
+              <div className="stat-card insight-stat-card" key={title}>
                 <div className="stat-card-title">{title}</div>
                 <div className="stat-card-value">
                   {loading ? "—" : value}
@@ -109,9 +118,15 @@ function FeedbackAnalytics() {
             ))}
           </section>
 
-          <section className="dashboard-grid">
-            <div className="dashboard-card">
-              <h2>Human decision distribution</h2>
+          <section className="dashboard-grid insight-chart-grid">
+            <div className="dashboard-card insight-chart-card">
+              <div className="analytics-card-heading">
+                <div>
+                  <span className="dashboard-card-kicker">DECISION MIX</span>
+                  <h2>Human decision distribution</h2>
+                </div>
+                <span className="dashboard-heading-icon" aria-hidden="true">◒</span>
+              </div>
               {decisionData.some((item) => item.count > 0) ? (
                 <DistributionDonut
                   counts={decisionData}
@@ -131,8 +146,14 @@ function FeedbackAnalytics() {
                 </p>
               )}
             </div>
-            <div className="dashboard-card">
-              <h2>Review outcomes</h2>
+            <div className="dashboard-card insight-chart-card">
+              <div className="analytics-card-heading">
+                <div>
+                  <span className="dashboard-card-kicker">DECISION VOLUME</span>
+                  <h2>Review outcomes</h2>
+                </div>
+                <span className="dashboard-heading-icon" aria-hidden="true">↗</span>
+              </div>
               <div style={{ width: "100%", height: 300 }}>
                 <ResponsiveContainer>
                   <BarChart data={decisionData}>
@@ -147,8 +168,14 @@ function FeedbackAnalytics() {
             </div>
           </section>
 
-          <section className="dashboard-card">
-            <h2>Recent human decisions</h2>
+          <section className="dashboard-card analytics-table-card">
+            <div className="analytics-card-heading">
+              <div>
+                <span className="dashboard-card-kicker">AUDIT TRAIL</span>
+                <h2>Recent human decisions</h2>
+              </div>
+              <span className="analytics-hero-badge">{reviewed.length} DECISIONS</span>
+            </div>
             <div className="transaction-table-container">
               <table className="transaction-table">
                 <thead>
@@ -172,7 +199,17 @@ function FeedbackAnalytics() {
                       <td>
                         {item.risk_level}
                       </td>
-                      <td>{item.review_decision}</td>
+                      <td>
+                        <span
+                          className={`dashboard-review-badge ${
+                            item.review_decision === "APPROVED"
+                              ? "is-complete"
+                              : "is-pending"
+                          }`}
+                        >
+                          {item.review_decision}
+                        </span>
+                      </td>
                       <td>{item.review_comment || "—"}</td>
                     </tr>
                   ))}

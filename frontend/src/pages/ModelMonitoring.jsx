@@ -255,10 +255,14 @@ function ModelMonitoring() {
       <div className="main-area">
         <Navbar />
 
-        <main className="page-content">
-          <div className="page-header">
-            <div>
-              <h1>Model Monitoring</h1>
+        <main className="page-content model-monitoring-page">
+          <div className="dashboard-hero analytics-hero model-monitoring-hero">
+            <div className="dashboard-hero-copy">
+              <span className="dashboard-eyebrow">
+                <span className="dashboard-eyebrow-dot" />
+                MODEL OPERATIONS
+              </span>
+              <h1>Model monitoring</h1>
               <p className="monitoring-last-updated">
                 {lastUpdated
                   ? `Last API update: ${formatDate(lastUpdated)}`
@@ -266,7 +270,10 @@ function ModelMonitoring() {
                 {refreshing ? " · Refreshing..." : ""}
               </p>
             </div>
-
+            <span className="model-status-pill">
+              <span />
+              {String(activeStatus).toUpperCase()}
+            </span>
           </div>
 
           {currentError && (
@@ -284,7 +291,7 @@ function ModelMonitoring() {
             </div>
           )}
 
-          <section className="stats-grid">
+          <section className="stats-grid model-monitoring-stats">
             <StatCard
               title="Model Version"
               value={version}
@@ -340,8 +347,14 @@ function ModelMonitoring() {
             />
           </section>
 
-          <section className="dashboard-card">
-            <h2>Model Information</h2>
+          <section className="dashboard-card model-info-card">
+            <div className="analytics-card-heading">
+              <div>
+                <span className="dashboard-card-kicker">ACTIVE REGISTRATION</span>
+                <h2>Model information</h2>
+              </div>
+              <span className="dashboard-heading-icon" aria-hidden="true">◈</span>
+            </div>
             <p>
               This section displays the active model information returned by
               the backend. Registration status and training timestamp appear
@@ -379,8 +392,14 @@ function ModelMonitoring() {
             </div>
           </section>
 
-          <section className="dashboard-card">
-            <h2>Saved Test Confusion Matrix · Offline</h2>
+          <section className="dashboard-card model-chart-card">
+            <div className="analytics-card-heading">
+              <div>
+                <span className="dashboard-card-kicker">OFFLINE EVALUATION</span>
+                <h2>Saved test confusion matrix</h2>
+              </div>
+              <span className="analytics-hero-badge">REFERENCE METRICS</span>
+            </div>
 
             <div className="table-container">
               <table>
@@ -430,8 +449,14 @@ function ModelMonitoring() {
 
           </section>
 
-          <section className="dashboard-card">
-            <h2>Saved Cost-Sensitive Policy Scenarios</h2>
+          <section className="dashboard-card model-chart-card">
+            <div className="analytics-card-heading">
+              <div>
+                <span className="dashboard-card-kicker">DECISION ECONOMICS</span>
+                <h2>Cost-sensitive policy scenarios</h2>
+              </div>
+              <span className="dashboard-heading-icon" aria-hidden="true">↗</span>
+            </div>
 
             <div style={{ width: "100%", height: 320 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -487,8 +512,14 @@ function ModelMonitoring() {
 
           </section>
 
-          <section className="dashboard-card">
-            <h2>Saved Decision Distribution by Scenario</h2>
+          <section className="dashboard-card model-chart-card">
+            <div className="analytics-card-heading">
+              <div>
+                <span className="dashboard-card-kicker">POLICY COMPARISON</span>
+                <h2>Decision distribution by scenario</h2>
+              </div>
+              <span className="dashboard-heading-icon" aria-hidden="true">▥</span>
+            </div>
 
             <div style={{ width: "100%", height: 320 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -510,8 +541,14 @@ function ModelMonitoring() {
             </div>
           </section>
 
-          <section className="dashboard-card">
-            <h2>Model Monitoring and Version History</h2>
+          <section className="dashboard-card model-history-card">
+            <div className="analytics-card-heading">
+              <div>
+                <span className="dashboard-card-kicker">REGISTRY</span>
+                <h2>Model version history</h2>
+              </div>
+              <span className="dashboard-heading-icon" aria-hidden="true">↻</span>
+            </div>
 
             {loading ? (
               <p>Loading registered model information...</p>

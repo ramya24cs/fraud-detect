@@ -136,6 +136,102 @@ def send_review_notification(
     }
 
 
+def send_batch_review_notification(
+    *,
+    recipient_email: str,
+    assessments: list[dict[str, Any]],
+    total_transactions: int,
+    threshold_amount: float,
+) -> dict[str, str | None]:
+    mail_settings = get_current_settings()
+    host = mail_settings.SMTP_HOST
+    sender = mail_settings.SMTP_FROM_EMAIL or mail_settings.SMTP_USERNAME
+    username = mail_settings.SMTP_USERNAME
+    password = _normalize_smtp_password(
+        host,
+        mail_settings.SMTP_PASSWORD,
+    )
+    subject = (
+        f"Transaction amount threshold exceeded: {len(assessments)} "
+        f"of {total_transactions}"
+    )
+    review_url = f"{mail_settings.FRONTEND_BASE_URL.rstrip('/')}/predict-transaction"
+    transaction_lines = "\n".join(
+        f"- {item['currency']} {item['amount']:.2f} on "
+        f"{item['occurred_at']} "
+        f"(risk: {item['risk_level']}; "
+        f"reference: {item.get('reference') or 'not provided'}; "
+        f"merchant: {item.get('merchant') or 'not provided'}; "
+        f"assessment ID: {item['assessment_id']})"
+        for item in assessments
+    )
+    content = (
+        f"The uploaded transaction file contains {total_transactions} "
+        f"transactions. {len(assessments)} transaction(s) exceeded the "
+        f"amount threshold of {threshold_amount:,.2f} in the amount's "
+        "stated currency:\n\n"
+        f"{transaction_lines}\n\n"
+        "Sign in to review the pending assessments:\n"
+        f"{review_url}\n\n"
+        "This amount-based assessment is a review aid, not proof of fraud."
+    )
+
+    if not host or not sender or bool(username) != bool(password):
+        return {
+            "status": "NOT_CONFIGURED",
+            "message": (
+                "The batch contains transactions above the amount threshold, "
+                "but the alert email could not be sent. The saved "
+                "transactions are available in the application."
+            ),
+            "recipient": recipient_email,
+            "subject": subject,
+            "content": content,
+        }
+
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = recipient_email
+    message.set_content(content)
+
+    try:
+        with smtplib.SMTP(host, mail_settings.SMTP_PORT, timeout=10) as client:
+            if mail_settings.SMTP_USE_STARTTLS:
+                client.starttls(context=ssl.create_default_context())
+            if username and password:
+                client.login(username, password)
+            refused = client.send_message(message)
+            if refused:
+                raise smtplib.SMTPRecipientsRefused(refused)
+    except (OSError, smtplib.SMTPException, ValueError):
+        logger.exception(
+            "Unable to email reviewer for threshold-exceeding transaction batch"
+        )
+        return {
+            "status": "FAILED",
+            "message": (
+                "The batch contains transactions above the amount threshold, "
+                "but the alert email could not be delivered. The saved "
+                "transactions are available in the application."
+            ),
+            "recipient": recipient_email,
+            "subject": subject,
+            "content": content,
+        }
+
+    return {
+        "status": "SENT",
+        "message": (
+            f"One batch review email was accepted for delivery to "
+            f"{recipient_email}."
+        ),
+        "recipient": recipient_email,
+        "subject": subject,
+        "content": content,
+    }
+
+
 def send_prediction_risk_alert(
     *,
     recipient_email: str,

@@ -3,6 +3,13 @@ import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import transactionService from "../services/transactionService";
 
+function normalizeSearchValue(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase();
+}
+
 function ReviewQueue() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,13 +81,35 @@ function ReviewQueue() {
   };
 
   const visibleItems = items.filter((item) => {
-    const query = search.trim().toLowerCase();
-    return (
-      !query ||
-      [item.reference, item.merchant, item.transaction_type, item.location]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query))
+    const queryTerms = normalizeSearchValue(search).trim().split(/\s+/).filter(Boolean);
+    if (queryTerms.length === 0) return true;
+
+    const createdAt = item.created_at ? new Date(item.created_at) : null;
+    const dateSearchValues =
+      createdAt && !Number.isNaN(createdAt.getTime())
+        ? [item.created_at, createdAt.toLocaleString()]
+        : [];
+    const searchableText = normalizeSearchValue(
+      [
+        item.reference,
+        item.merchant,
+        item.transaction_type,
+        item.channel,
+        item.location,
+        item.currency,
+        item.amount,
+        Number.isFinite(Number(item.amount))
+          ? Number(item.amount).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })
+          : "",
+        item.risk_level,
+        ...dateSearchValues,
+      ].join(" ")
     );
+
+    return queryTerms.every((term) => searchableText.includes(term));
   });
   const highRiskCount = items.filter(
     (item) => item.risk_level === "HIGH"
@@ -94,13 +123,24 @@ function ReviewQueue() {
       <Sidebar />
       <div className="main-area">
         <Navbar />
-        <main className="page-content">
-          <div className="page-header">
+        <main className="page-content review-workspace-page">
+          <div className="page-header review-workspace-header">
             <div className="review-page-title">
+              <span className="dashboard-eyebrow">
+                <span className="dashboard-eyebrow-dot" />
+                HUMAN-IN-THE-LOOP OPERATIONS
+              </span>
               <h1>Human Review Queue</h1>
-              <span>Transactions awaiting your decision</span>
+              <span className="review-page-description">
+                Prioritize flagged transactions and record a clear review
+                decision.
+              </span>
             </div>
             <div className="review-header-actions">
+              <span className="review-live-indicator">
+                <span />
+                MY QUEUE
+              </span>
               <span className="review-queue-count">
                 {loading ? "Loading..." : `${items.length} open`}
               </span>
@@ -135,7 +175,7 @@ function ReviewQueue() {
           )}
 
           <section className="review-summary-grid" aria-label="Review summary">
-            <div className="review-summary-card">
+            <div className="review-summary-card review-summary-total">
               <span className="review-summary-label">Open reviews</span>
               <strong>{loading ? "—" : items.length}</strong>
               <span className="review-summary-mark">Total queue</span>
@@ -153,8 +193,13 @@ function ReviewQueue() {
           </section>
 
           <section className="review-search-card">
-            <label htmlFor="review-search">Search transactions</label>
-            <span>Reference, recipient, type, or location</span>
+            <div>
+              <label htmlFor="review-search">Find a transaction</label>
+              <span>
+                Search by reference, recipient, type, channel, location, amount,
+                risk, or date
+              </span>
+            </div>
             <input
               id="review-search"
               className="review-search-input"

@@ -68,3 +68,20 @@ def test_dashboard_summary_works_for_authenticated_operator(monkeypatch):
     response = client.get("/dashboard/summary")
 
     assert response.status_code == 200
+
+
+def test_current_account_returns_identity_for_authenticated_user(monkeypatch):
+    operator = setup_operator_auth(monkeypatch)
+
+    response = client.get("/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(operator.id)
+    assert response.json()["email"] == operator.email
+    assert response.json()["role"] == operator.role
+
+
+def test_current_account_requires_authentication():
+    response = client.get("/auth/me")
+
+    assert response.status_code == 401

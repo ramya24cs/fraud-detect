@@ -84,24 +84,90 @@ function Dashboard() {
     (item) => item.review_decision
   ).length;
   const recent = assessments.slice(0, 6);
+  const statCards = [
+    {
+      title: "Transactions assessed",
+      value: assessments.length,
+      tone: "total",
+      marker: "TX",
+      note: "Saved to your account",
+    },
+    {
+      title: "Low risk",
+      value: riskCounts[0].count,
+      tone: "low",
+      marker: "L",
+      note: "Classified as low risk",
+    },
+    {
+      title: "Medium risk",
+      value: riskCounts[1].count,
+      tone: "medium",
+      marker: "M",
+      note: "Closer assessment recommended",
+    },
+    {
+      title: "High risk",
+      value: riskCounts[2].count,
+      tone: "high",
+      marker: "H",
+      note: "Priority attention",
+    },
+    {
+      title: "Awaiting review",
+      value: pendingCount,
+      tone: "review",
+      marker: "!",
+      note: "Open in review queue",
+    },
+    {
+      title: "Human decisions",
+      value: reviewedCount,
+      tone: "decisions",
+      marker: "✓",
+      note: "Completed review decisions",
+    },
+  ];
 
   return (
     <div className="app-layout">
       <Sidebar />
       <div className="main-area">
         <Navbar />
-        <main className="page-content">
-          <div className="page-header">
-            <div>
-              <h1>Fraud Detection Dashboard</h1>
+        <main className="page-content dashboard-page">
+          <div className="dashboard-hero">
+            <div className="dashboard-hero-copy">
+              <span className="dashboard-eyebrow">
+                <span className="dashboard-eyebrow-dot" />
+                PERSONAL RISK OVERVIEW
+              </span>
+              <h1>Your transaction dashboard</h1>
+              <p>
+                Monitor assessed activity, risk distribution and outstanding
+                reviews in one place.
+              </p>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="dashboard-hero-actions">
+              <span className="dashboard-live-label">
+                <span />
+                ACCOUNT VIEW
+              </span>
               <button
+                className="dashboard-refresh-button"
                 type="button"
                 onClick={loadDashboard}
                 disabled={loading}
               >
-                Refresh
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path
+                    d="M16.2 8A6.5 6.5 0 0 0 5 5.4L3.8 7M3.8 7V3.8M3.8 7H7m-3.2 5A6.5 6.5 0 0 0 15 14.6l1.2-1.6m0 0v3.2m0-3.2H13"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {loading ? "Updating" : "Refresh"}
               </button>
             </div>
           </div>
@@ -112,45 +178,98 @@ function Dashboard() {
             </div>
           )}
 
-          <section className="stats-grid">
-            {[
-              ["Transactions assessed", assessments.length],
-              ["Low risk", riskCounts[0].count],
-              ["Medium risk", riskCounts[1].count],
-              ["High risk", riskCounts[2].count],
-              ["Awaiting review", pendingCount],
-              ["Human decisions", reviewedCount],
-            ].map(([title, value]) => (
-              <div className="stat-card" key={title}>
-                <div className="stat-card-title">{title}</div>
-                <div className="stat-card-value">
-                  {loading ? "—" : value}
+          <section className="stats-grid dashboard-stats">
+            {statCards.map((card) => (
+              <div
+                className={`stat-card dashboard-stat-card tone-${card.tone}`}
+                key={card.title}
+              >
+                <div className="dashboard-stat-topline">
+                  <span className="dashboard-stat-marker" aria-hidden="true">
+                    {card.marker}
+                  </span>
+                  <span className="dashboard-stat-title">{card.title}</span>
                 </div>
-                <div className="stat-card-subtitle">Current account</div>
+                <div className="dashboard-stat-value">
+                  {loading ? "—" : card.value}
+                </div>
+                <div className="dashboard-stat-note">
+                  <span className="dashboard-stat-note-dot" />
+                  {card.note}
+                </div>
               </div>
             ))}
           </section>
 
-          <section className="dashboard-grid">
-            <div className="dashboard-card">
-              <h2>Risk level overview</h2>
+          <section className="dashboard-grid dashboard-overview-grid">
+            <div className="dashboard-card dashboard-risk-card">
+              <div className="dashboard-card-heading">
+                <div>
+                  <span className="dashboard-card-kicker">DISTRIBUTION</span>
+                  <h2>Risk level overview</h2>
+                </div>
+                <span className="dashboard-heading-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M4 19V5m0 14h16M8 15l3-4 3 2 5-7"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </div>
               {assessments.length ? (
-                <DistributionDonut
-                  counts={riskCounts}
-                  total={assessments.length}
-                  colors={RISK_COLORS}
-                  caption="Share of assessed transactions"
-                />
+                <>
+                  <DistributionDonut
+                    counts={riskCounts}
+                    total={assessments.length}
+                    colors={RISK_COLORS}
+                    caption="Share of assessed transactions"
+                  />
+                  <div className="dashboard-risk-scale" aria-hidden="true">
+                    {riskCounts.map(({ name, count }) => (
+                      <span
+                        key={name}
+                        className={`risk-scale-${name.toLowerCase()}`}
+                        style={{
+                          flexGrow: count || 0.015,
+                          flexBasis: 0,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </>
               ) : (
-                <p>
-                  {loading
-                    ? "Loading assessments..."
-                    : "No transactions have been assessed yet."}
-                </p>
+                <div className="dashboard-empty-overview">
+                  <span aria-hidden="true">◎</span>
+                  <p>
+                    {loading
+                      ? "Loading your account overview..."
+                      : "No transactions have been assessed yet."}
+                  </p>
+                </div>
               )}
             </div>
-            <div className="dashboard-card">
-              <h2>Open human reviews</h2>
+            <div className="dashboard-card dashboard-review-card">
+              <div className="dashboard-card-heading">
+                <div>
+                  <span className="dashboard-card-kicker">NEXT ACTION</span>
+                  <h2>Open human reviews</h2>
+                </div>
+                <span className="dashboard-heading-icon review-heading-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 8v4m0 4h.01M10.3 3.9 2.9 17a2 2 0 0 0 1.8 3h14.6a2 2 0 0 0 1.8-3l-7.4-13.1a2 2 0 0 0-3.4 0Z"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              </div>
               <p className="dashboard-review-description">
                 Transactions waiting for your agree/disagree decision.
               </p>
@@ -162,7 +281,9 @@ function Dashboard() {
                   {loading ? "—" : pendingCount}
                 </div>
                 <span className="dashboard-review-label">
-                  {pendingCount === 1 ? "review needs attention" : "reviews need attention"}
+                  {pendingCount === 1
+                    ? "review needs attention"
+                    : "reviews need attention"}
                 </span>
               </div>
               <button
@@ -170,25 +291,28 @@ function Dashboard() {
                 type="button"
                 onClick={() => navigate("/review-queue")}
               >
-                Open review queue <span aria-hidden="true">→</span>
+                Review transactions <span aria-hidden="true">→</span>
               </button>
             </div>
           </section>
 
-          <section className="dashboard-card">
-            <div className="page-header">
+          <section className="dashboard-card dashboard-recent-card">
+            <div className="dashboard-recent-heading">
               <div>
+                <span className="dashboard-card-kicker">YOUR ACTIVITY</span>
                 <h2>Recent assessments</h2>
-                <p>Latest transaction entries saved for your account.</p>
+                <p>Latest transactions saved to your account.</p>
               </div>
               <button
+                className="dashboard-assess-button"
                 type="button"
                 onClick={() => navigate("/predict-transaction")}
               >
-                Assess transaction
+                <span aria-hidden="true">＋</span>
+                Assess a transaction
               </button>
             </div>
-            <div className="transaction-table-container">
+            <div className="transaction-table-container dashboard-table-wrap">
               <table className="transaction-table">
                 <thead>
                   <tr>
@@ -203,12 +327,35 @@ function Dashboard() {
                   {recent.map((item) => (
                     <tr key={item.assessment_id}>
                       <td>{new Date(item.created_at).toLocaleString()}</td>
-                      <td>{item.reference || item.merchant || "—"}</td>
-                      <td>{formatAmount(item.amount, item.currency)}</td>
-                      <td>{item.risk_level}</td>
+                      <td className="dashboard-reference">
+                        {item.reference || item.merchant || "—"}
+                      </td>
+                      <td className="dashboard-amount">
+                        {formatAmount(item.amount, item.currency)}
+                      </td>
                       <td>
-                        {item.review_decision ||
-                          (item.review_required ? "Pending" : "Not required")}
+                        <span
+                          className={`dashboard-risk-badge risk-${item.risk_level.toLowerCase()}`}
+                        >
+                          <span />
+                          {item.risk_level.replaceAll("_", " ")}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`dashboard-review-badge ${
+                            item.review_decision
+                              ? "is-complete"
+                              : item.review_required
+                                ? "is-pending"
+                                : "is-not-required"
+                          }`}
+                        >
+                          {item.review_decision ||
+                            (item.review_required
+                              ? "Pending"
+                              : "Not required")}
+                        </span>
                       </td>
                     </tr>
                   ))}

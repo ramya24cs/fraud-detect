@@ -9,9 +9,11 @@ from backend.app.models.transaction import Transaction
 from backend.app.models.transaction_assessment import TransactionAssessment
 from backend.app.schemas.transaction_assessment import (
     ReviewDecisionRequest,
+    TransactionAssessmentBatchRequest,
     TransactionAssessmentRequest,
 )
 from backend.app.services.transaction_assessment_service import (
+    analyze_batch_and_persist,
     analyze_and_persist,
     assess_transaction_amount,
     list_assessment_history,
@@ -142,11 +144,135 @@ def test_medium_and_high_amount_assessments_send_email_for_human_review(
         )
 
 
-def test_dashboard_history_query_includes_current_and_legacy_assessments():
+def _batch_assessment_request(*amounts):
+    return TransactionAssessmentBatchRequest(
+        transactions=[
+            TransactionAssessmentRequest(
+                amount=amount,
+                currency="INR",
+                occurred_at="2026-10-14T17:30:00+05:30",
+                transaction_type="UPI",
+                channel="Mobile app",
+                reference=f"batch-{index}",
+            )
+            for index, amount in enumerate(amounts, start=1)
+        ]
+    )
+
+
+def _batch_test_db():
+    db = MagicMock()
+    db.add.side_effect = lambda obj: (
+        setattr(obj, "id", uuid4())
+        if isinstance(obj, (Transaction, TransactionAssessment))
+        else None
+    )
+    db.refresh.side_effect = lambda assessment: setattr(
+        assessment,
+        "created_at",
+        datetime.now(timezone.utc),
+    )
+    return db
+
+
+def test_batch_assessment_sends_one_email_for_rows_above_amount_threshold():
+    db = _batch_test_db()
+    user = MagicMock(id=uuid4(), email="signed-in@example.test")
+
+    with patch(
+        "backend.app.services.transaction_assessment_service."
+        "send_review_notification"
+    ) as send_single, patch(
+        "backend.app.services.transaction_assessment_service."
+        "send_batch_review_notification",
+        return_value={
+            "status": "SENT",
+            "message": "One email sent.",
+            "recipient": user.email,
+            "subject": "Batch threshold exceeded",
+            "content": "Rows above threshold",
+        },
+    ) as send_batch:
+        result = analyze_batch_and_persist(
+            db,
+            _batch_assessment_request(2_500, 100_000, 150_000, 1_000),
+            user,
+        )
+
+    assert result["overall_risk_level"] == "HIGH"
+    assert [item["risk_level"] for item in result["assessments"]] == [
+        "MEDIUM",
+        "HIGH",
+        "HIGH",
+        "LOW",
+    ]
+    assert result["review_notification_status"] == "SENT"
+    send_single.assert_not_called()
+    send_batch.assert_called_once()
+    assert len(send_batch.call_args.kwargs["assessments"]) == 2
+    assert send_batch.call_args.kwargs["assessments"][0]["amount"] == 100_000
+    assert send_batch.call_args.kwargs["total_transactions"] == 4
+    assert send_batch.call_args.kwargs["threshold_amount"] == 50_000
+    db.commit.assert_called_once()
+
+
+def test_medium_only_batch_sends_no_email():
+    db = _batch_test_db()
+    user = MagicMock(id=uuid4(), email="signed-in@example.test")
+
+    with patch(
+        "backend.app.services.transaction_assessment_service."
+        "send_review_notification"
+    ) as send_single, patch(
+        "backend.app.services.transaction_assessment_service."
+        "send_batch_review_notification"
+    ) as send_batch:
+        result = analyze_batch_and_persist(
+            db,
+            _batch_assessment_request(2_500, 50_000),
+            user,
+        )
+
+    assert result["overall_risk_level"] == "MEDIUM"
+    assert result["review_notification_status"] == "NOT_REQUIRED"
+    send_single.assert_not_called()
+    send_batch.assert_not_called()
+    db.commit.assert_called_once()
+
+
+def test_medium_transaction_just_above_50000_triggers_one_batch_email():
+    db = _batch_test_db()
+    user = MagicMock(id=uuid4(), email="signed-in@example.test")
+
+    with patch(
+        "backend.app.services.transaction_assessment_service."
+        "send_batch_review_notification",
+        return_value={
+            "status": "SENT",
+            "message": "One email sent.",
+            "recipient": user.email,
+            "subject": "Threshold exceeded",
+            "content": "Medium-risk transaction",
+        },
+    ) as send_batch:
+        result = analyze_batch_and_persist(
+            db,
+            _batch_assessment_request(50_000.01, 10_000),
+            user,
+        )
+
+    assert result["assessments"][0]["risk_level"] == "MEDIUM"
+    assert result["review_notification_status"] == "SENT"
+    send_batch.assert_called_once()
+    assert len(send_batch.call_args.kwargs["assessments"]) == 1
+    assert send_batch.call_args.kwargs["assessments"][0]["amount"] == 50_000.01
+
+
+def test_dashboard_history_query_includes_only_admins_own_assessments():
     db = MagicMock()
     db.scalar.return_value = 0
     db.execute.return_value.all.return_value = []
-    user = MagicMock(id=uuid4(), role="OPERATOR")
+    user = MagicMock(id=uuid4(), role="ADMIN")
 
     result = list_assessment_history(db, user)
 
@@ -159,13 +285,15 @@ def test_dashboard_history_query_includes_current_and_legacy_assessments():
     assert result.total == 0
     assert "account-history-anomaly" in sql
     assert "fixed-amount-thresholds" in sql
+    assert "transactions.user_id" in sql
+    assert user.id.hex in sql
 
 
-def test_pending_review_query_includes_unreviewed_medium_and_high_items():
+def test_pending_review_query_includes_only_admins_own_transactions():
     db = MagicMock()
     db.scalar.return_value = 0
     db.execute.return_value.all.return_value = []
-    user = MagicMock(id=uuid4(), role="OPERATOR")
+    user = MagicMock(id=uuid4(), role="ADMIN")
 
     result = list_pending_reviews(db, user)
 
@@ -178,6 +306,8 @@ def test_pending_review_query_includes_unreviewed_medium_and_high_items():
     assert result.total == 0
     assert "review_required" in sql
     assert "reviewed_at IS NULL" in sql
+    assert "transactions.user_id" in sql
+    assert user.id.hex in sql
 
 
 def test_assessment_request_normalizes_currency_and_text():

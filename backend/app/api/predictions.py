@@ -20,6 +20,8 @@ from backend.app.schemas.transaction_assessment import (
     ReviewDecisionRequest,
     ReviewDecisionResponse,
     RiskAlertList,
+    TransactionAssessmentBatchRequest,
+    TransactionAssessmentBatchResponse,
     TransactionAssessmentRequest,
     TransactionAssessmentResponse,
 )
@@ -28,6 +30,7 @@ from backend.app.services.prediction_service import (
     summarize_prediction,
 )
 from backend.app.services.transaction_assessment_service import (
+    analyze_batch_and_persist,
     analyze_and_persist,
     list_assessment_history,
     list_pending_reviews,
@@ -80,6 +83,25 @@ def analyze_transaction(
         current_user=current_user,
     )
     return TransactionAssessmentResponse(**result)
+
+
+@router.post(
+    "/analyze-batch",
+    response_model=TransactionAssessmentBatchResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def analyze_transaction_batch(
+    request: TransactionAssessmentBatchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> TransactionAssessmentBatchResponse:
+    """Assess a batch and send one email only when any row is HIGH risk."""
+    result = analyze_batch_and_persist(
+        db=db,
+        request=request,
+        current_user=current_user,
+    )
+    return TransactionAssessmentBatchResponse(**result)
 
 
 @router.get("/risk-alerts", response_model=RiskAlertList)

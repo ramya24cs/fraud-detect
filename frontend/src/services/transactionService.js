@@ -11,6 +11,11 @@ const transactionService = {
     return response.data;
   },
 
+  analyzeTransactionBatch: async (data) => {
+    const response = await api.post("/transactions/analyze-batch", data);
+    return response.data;
+  },
+
   getRiskAlerts: async () => {
     const response = await api.get("/transactions/risk-alerts");
     return response.data;

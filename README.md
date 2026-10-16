@@ -105,6 +105,37 @@ The app saves the entered transaction details under the authenticated account.
 Previously saved assessments retain their original result; reassess a
 transaction to apply the current `fixed-amount-thresholds-v1` policy.
 
+#### Assess transactions from a CSV or PDF
+
+After signing in, open **Predict Transaction** and use **Assess transactions
+from a CSV or PDF**. CSV files need a header row containing a date column
+(`Date` or `Transaction Date`) and an amount column (`Amount`, `Debit`,
+`Withdrawal`, or `Credit`). Common optional headers include `Currency`,
+`Description`, `Merchant`, `Reference`, `Type`, and `Channel`. For example:
+
+```csv
+Date,Amount,Currency,Description,Reference
+15/10/2026 14:30,2500.00,INR,Cafe,TX-001
+```
+
+CSV dates written with slashes are interpreted as day/month/year. Text-based
+PDF statements are also supported when each transaction's date and amount
+appear together on a readable text line. Scanned/image PDFs and layouts that
+cannot be reliably extracted are not supported. Uploads are limited to 10 MB
+and 100 transaction rows. The app previews extracted dates and amounts for
+correction before submission; check them carefully, especially PDF rows or
+statements that show both transaction amounts and balances. Each submitted
+row is saved as a separate amount-based assessment under the signed-in
+account. Every MEDIUM/HIGH row remains in the human review queue. Batch email
+behavior is based on the highest risk row: a LOW- or MEDIUM-only batch sends
+no email, while a batch containing one or more HIGH rows sends one summary
+email listing the HIGH rows.
+
+This upload feature does **not** turn ordinary statement fields into the
+XGBoost model's required PCA-derived features and does not produce an ML
+fraud probability. It applies the same provisional fixed amount thresholds as
+the manual assessment form.
+
 #### Supplied synthetic transaction data
 
 The supplied 12,000-row `fraud_transactions_synthetic.csv` can be used to

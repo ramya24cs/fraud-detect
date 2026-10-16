@@ -79,11 +79,20 @@ function RiskAnalytics() {
       <Sidebar />
       <div className="main-area">
         <Navbar />
-        <main className="page-content">
-          <div className="page-header">
-            <div>
-              <h1>Risk Analytics</h1>
+        <main className="page-content risk-analytics-page">
+          <div className="dashboard-hero analytics-hero">
+            <div className="dashboard-hero-copy">
+              <span className="dashboard-eyebrow">
+                <span className="dashboard-eyebrow-dot" />
+                ACCOUNT RISK INTELLIGENCE
+              </span>
+              <h1>Risk analytics</h1>
+              <p>
+                Explore risk patterns and review outcomes across your saved
+                assessments.
+              </p>
             </div>
+            <span className="analytics-hero-badge">RISK PROFILE</span>
           </div>
 
           {error && (
@@ -92,9 +101,9 @@ function RiskAnalytics() {
             </div>
           )}
 
-          <section className="stats-grid">
+          <section className="stats-grid insight-stat-grid">
             {riskData.map((item) => (
-              <div className="stat-card" key={item.name}>
+              <div className={`stat-card insight-stat-card tone-${item.name.toLowerCase()}`} key={item.name}>
                 <div className="stat-card-title">{item.name} risk</div>
                 <div className="stat-card-value">
                   {loading ? "—" : item.count}
@@ -102,7 +111,7 @@ function RiskAnalytics() {
                 <div className="stat-card-subtitle">Saved assessments</div>
               </div>
             ))}
-            <div className="stat-card">
+            <div className="stat-card insight-stat-card tone-decisions">
               <div className="stat-card-title">Reviewed by a human</div>
               <div className="stat-card-value">
                 {loading
@@ -113,9 +122,15 @@ function RiskAnalytics() {
             </div>
           </section>
 
-          <section className="dashboard-grid">
-            <div className="dashboard-card">
-              <h2>Assessment risk levels</h2>
+          <section className="dashboard-grid insight-chart-grid">
+            <div className="dashboard-card insight-chart-card">
+              <div className="analytics-card-heading">
+                <div>
+                  <span className="dashboard-card-kicker">RISK MIX</span>
+                  <h2>Assessment risk levels</h2>
+                </div>
+                <span className="dashboard-heading-icon" aria-hidden="true">◒</span>
+              </div>
               {assessments.length ? (
                 <DistributionDonut
                   counts={riskData}
@@ -129,8 +144,14 @@ function RiskAnalytics() {
                 </p>
               )}
             </div>
-            <div className="dashboard-card">
-              <h2>Human review status</h2>
+            <div className="dashboard-card insight-chart-card">
+              <div className="analytics-card-heading">
+                <div>
+                  <span className="dashboard-card-kicker">REVIEW OUTCOMES</span>
+                  <h2>Human review status</h2>
+                </div>
+                <span className="dashboard-heading-icon" aria-hidden="true">↗</span>
+              </div>
               <div className="risk-review-chart">
                 <div className="risk-review-summary" aria-label="Review totals">
                   {decisionData.map(({ name, count }) => (
@@ -159,8 +180,14 @@ function RiskAnalytics() {
             </div>
           </section>
 
-          <section className="dashboard-card">
-            <h2>Assessment detail</h2>
+          <section className="dashboard-card analytics-table-card">
+            <div className="analytics-card-heading">
+              <div>
+                <span className="dashboard-card-kicker">TRANSACTION HISTORY</span>
+                <h2>Assessment detail</h2>
+              </div>
+              <span className="analytics-hero-badge">{assessments.length} RECORDS</span>
+            </div>
             <div className="transaction-table-container">
               <table className="transaction-table">
                 <thead>
@@ -180,10 +207,29 @@ function RiskAnalytics() {
                       <td>
                         {item.currency} {Number(item.amount).toFixed(2)}
                       </td>
-                      <td>{item.risk_level}</td>
                       <td>
-                        {item.review_decision ||
-                          (item.review_required ? "Pending" : "Not required")}
+                        <span
+                          className={`dashboard-risk-badge risk-${String(item.risk_level).toLowerCase()}`}
+                        >
+                          <span />
+                          {String(item.risk_level).replaceAll("_", " ")}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`dashboard-review-badge ${
+                            item.review_decision
+                              ? "is-complete"
+                              : item.review_required
+                                ? "is-pending"
+                                : "is-not-required"
+                          }`}
+                        >
+                          {item.review_decision ||
+                            (item.review_required
+                              ? "Pending"
+                              : "Not required")}
+                        </span>
                       </td>
                     </tr>
                   ))}
