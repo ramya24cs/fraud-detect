@@ -68,7 +68,7 @@ If you are already in the outer download folder, first `cd` into the inner
 project folder that contains `backend` and `frontend`. Run commands from that
 repository root unless the step explicitly says to enter `frontend`.
 
-## Member 1: Machine Learning
+
 
 ### Main Model
 
@@ -314,6 +314,4 @@ model-compatible features from a trusted upstream source.
 
 These results were obtained at a 0.50 classification threshold on the held-out test set. Final business decision thresholds and the operator feedback policy are handled by the relevant project components.
 
-### Team Integration
 
-Member 1 provides fraud probability inference. The cost-sensitive decision policy, explanations, and operator feedback loop must be integrated with this interface without duplicating or silently changing the model preprocessing.
